@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Run Worker",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "source.worker",
+            "args": [
+                "--path",
+                "/tmp/loopcraft-datagen-test",
+            ],
+            "env": {
+                "MINERL_HEADLESS": "1",
+            }
+        }
+    ]
+}

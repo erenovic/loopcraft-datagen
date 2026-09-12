@@ -75,11 +75,28 @@ def collect_episode(
     show_default=True,
     help="Which trajectory generator to use.",
 )
+@click.option(
+    "--num-workers",
+    type=int,
+    default=1,
+    show_default=True,
+    help="Total workers cooperating on this --path (see --worker-id).",
+)
+@click.option(
+    "--worker-id",
+    type=int,
+    default=0,
+    show_default=True,
+    help="This worker's index in [0, num-workers). Worker k takes the episodes where "
+    "index %% num-workers == k, so a SLURM array fills one output tree.",
+)
 def main(
     path: Path,
     num_examples: int,
     num_frames: int,
     split: Literal["train", "test"],
+    num_workers: int,
+    worker_id: int,
 ) -> None:
     # Create the environment.
     SimpleExplore(resolution=(512, 512)).register()
@@ -124,9 +141,19 @@ def main(
     #   if you want it, and I will send it to you.
     keys = [f"{index // 1000:0>3}/{index % 1000:0>3}" for index in range(num_examples)]
     path.mkdir(exist_ok=True, parents=True)
-    with (path / "index.json").open("w") as f:
-        json.dump({k: num_frames for k in keys}, f)
-    for key in keys:
+
+    if worker_id == 0:
+        with (path / "index.json").open("w") as f:
+            json.dump({k: num_frames for k in keys}, f)
+
+    for index, key in enumerate(keys):
+        if index % num_workers != worker_id:
+            continue
+
+        if (path / f"{key}.npy").exists():
+            print(f"Skipping {key} (already generated).")
+            continue
+
         task_fn(key)
 
 
